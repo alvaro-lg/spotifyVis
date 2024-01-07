@@ -42,7 +42,7 @@ ui <- fluidPage(
           checkboxInput("add_regression", "Add Regression Line", value = FALSE)
         ),
         mainPanel(
-          ggvisOutput("scatterPlot"),
+          ggvisOutput("outlierPlot"),
         )
       )
     ),
@@ -127,8 +127,8 @@ server <- function(input, output, session) {
     
     songs_filter <- spotify_data() %>%
       filter(
-        artist_count <= num_artists,
-        released_year <= max_song_year,
+        artist_count <= num_artists &
+        released_year <= max_song_year &
         released_year >= min_song_year
       )
     
@@ -138,7 +138,9 @@ server <- function(input, output, session) {
         filter(str_detect(str_to_lower(artist.s._name), str_to_lower(artist)))
     }
     
-    if (!is.null(looked_song) && looked_song != "") {
+    # optional: change searched song dot visuals
+    if (!is.null(looked_song) && looked_song != "" && nrow(songs_filter)) {
+      print(looked_song)
       songs_filter <- songs_filter %>%
         mutate(
           fill = ifelse(str_detect(str_to_lower(track_name), str_to_lower(looked_song)), "red", "black"),
@@ -200,7 +202,7 @@ server <- function(input, output, session) {
     plot
   })
   
-  vis %>% bind_shiny("scatterPlot")
+  vis %>% bind_shiny("outlierPlot")
   
   playlists_data <- reactive({
     # Getting data in the desired range
