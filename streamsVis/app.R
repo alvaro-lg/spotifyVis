@@ -34,9 +34,23 @@ MONTHS <- c("Jan"=1, "feb"=2, "Mar"=3, "Apr"=4, "May"=5, "Jun"=6, "Jul"=7, "Aug"
 ui <- fluidPage(
   titlePanel("spotifyVis"),
   tabsetPanel(
+    tabPanel("Release Date VS Other Parameters", fluid = TRUE,
+       sidebarLayout(
+         sidebarPanel(
+           h3("Release Date VS Other Parameters"),
+           helpText("Compare how release date affects songs' parameters"),
+           selectInput("medium", "Filter based on:", MEDIUM_OPTIONS),
+           selectInput("top_x", "Select:", TOP_X_OPTIONS),
+           selectInput("attr", "Parameter:", ATTR_OPTIONS),
+           selectInput("time_option", "Group by:", TIME_OPTIONS),
+         ),
+         mainPanel(plotOutput("releaseDatePlot"))
+       )
+    ),
     tabPanel("Outlier Exploration", fluid = TRUE,
       sidebarLayout(
         sidebarPanel(
+          h3("Explore Outliers by Comparing Parameters"),
           sliderInput("num_artists", "Maximum number of artists", min = 1, 
                       max = 8, value = 8),
           sliderInput("release_year", "Year of release", min = 1930, max = 2023, 
@@ -59,24 +73,25 @@ ui <- fluidPage(
         sidebarPanel(
           h3("Song Ocurrences on Playlists"),
           helpText("Compare the ocurrences on playlists by platform and relase date 
-                   periods"),
+                  periods"),
           checkboxGroupInput("checkGroup",
-                             label = "Select platforms to compare",
-                             choices = list("Spotify" = 1, 
-                                            "Apple Music" = 2, 
-                                            "Deezer" = 3),
-                             selected = 1),
+                            label = "Select platforms to compare",
+                            choices = list("Spotify" = 1, 
+                                           "Apple Music" = 2, 
+                                           "Deezer" = 3),
+                            selected = c(1, 2)
+          ),
           dateRangeInput(
-            "dateRange", label = "Select Period", start = "2018-01-01", 
-            end = "2023-01-01"
+             "dateRange", label = "Select Period", start = "2018-01-01", 
+             end = "2023-01-01"
           ),
           selectInput(
-            "timeGroup", label = "Group by", choices = c("Month", "Year"), 
-            selected = "Month"
+             "timeGroup", label = "Group by", choices = c("Month", "Year"), 
+             selected = "Month"
           ),
           h4("Other settings"),
           checkboxInput(
-            "logScale", label = "Logarithmic Scale (y-axis)", value = FALSE
+            "logScale", label = "Logarithmic Scale (y-axis)", value = TRUE
           ),
           checkboxInput(
             "songMean", label = "Compute Mean", value = FALSE
@@ -86,19 +101,6 @@ ui <- fluidPage(
           plotOutput("playlistsPlot")
         )
       )
-    ),
-    tabPanel("Release date vs parameters", fluid = TRUE,
-       sidebarLayout(
-         sidebarPanel(
-           h3("Release date vs parameters"),
-           helpText("Compare how release date affects songs' parameters"),
-           selectInput("medium", "Filter based on:", MEDIUM_OPTIONS),
-           selectInput("top_x", "Select:", TOP_X_OPTIONS),
-           selectInput("attr", "Parameter:", ATTR_OPTIONS),
-           selectInput("time_option", "Group by:", TIME_OPTIONS),
-         ),
-         mainPanel(plotOutput("releaseDatePlot"))
-       )
     )
   )
 )
@@ -271,8 +273,7 @@ server <- function(input, output, session) {
     
     plot <- ggplot(data_long, aes(x = grouping_var, y = Count, fill = Platform)) +
       geom_area(position = "stack") +
-      labs(title = "Occurrences in Playlists VS Release Period", x = "Release Date", 
-           y = "Occurrences in playlists") + 
+      labs(x = "Release Date", y = "Occurrences in playlists") + 
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), 
             legend.position = "bottom", legend.justification = "left") + 
@@ -293,19 +294,23 @@ server <- function(input, output, session) {
     }
   })
   
-  data_release_date <- read.csv("data/spotify-2023.csv")
-  data_release_date$season <- apply(data_release_date, 1, date_to_season_row)
-  
-  release_date_reactive_data = reactive({
-    data <- head(data_release_date[order(data_release_date[,input$medium], decreasing= if (input$medium == "streams") F else T),], n = as.numeric(input$top_x))
+  release_date_data = reactive({
+    data <- spotify_data()
+    data$season <- apply(data, 1, date_to_season_row)
+    data <- head(data[
+                  order(data[,input$medium], 
+                  decreasing = if (input$medium == "streams") F else T),
+                ], 
+                n = as.numeric(input$top_x))
     return(data)
   })
   
   output$releaseDatePlot <- renderPlot({
-    data_parsed <- release_date_reactive_data()
+    data_parsed <- release_date_data()
     boxplot(data_parsed[[input$attr]]~data_parsed[[input$time_option]],
             data=data_parsed,
-            xlab=if (input$time_option == "released_month") "Month Number" else if (input$time_option == "released_year") "year" else "season",
+            xlab=if (input$time_option == "released_month") "Month Number" 
+            else if (input$time_option == "released_year") "year" else "season",
             ylab="%",
             col="orange",
             border="brown")
