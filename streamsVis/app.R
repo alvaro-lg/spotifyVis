@@ -4,6 +4,7 @@ library(dplyr)
 library(zoo)
 library(ggvis)
 library(stringr)
+source("helper.R")
 
 # Auxiliary function
 axis_vars <- c(
@@ -20,6 +21,13 @@ axis_vars <- c(
   "Liveness" = "liveness_.",
   "Speechiness" = "speechiness_."
 )
+
+TOP_X_OPTIONS <- c("TOP10"=10, "TOP20"=20, "TOP50"=50, "TOP100"=100, "TOP250"=250,"TOP500"=500, "ALL"=1000)
+MEDIUM_OPTIONS <- c("streams", "in_spotify_charts", "in_spotify_playlists", "in_apple_charts", "in_apple_playlists", "in_deezer_charts", "in_deezer_playlists", "in_shazam_charts")
+ATTR_OPTIONS <- c("danceability"="danceability_.", "valence"="valence_.", "energy"="energy_.", "acousticness"="acousticness_.", "instrumentalness"="instrumentalness_.", "liveness"="liveness_.", "speechiness"="speechiness_." )
+TIME_OPTIONS <- c("season"="season", "year"="released_year", "month"="released_month")
+SEASONS <- c("Spring", "Summer", "Autumn", "Winter")
+MONTHS <- c("Jan"=1, "feb"=2, "Mar"=3, "Apr"=4, "May"=5, "Jun"=6, "Jul"=7, "Aug"=8, "Sep"=9, "Oct"=10, "Nov"=11, "Dec"=12)
 
 
 # Define UI ----
@@ -78,6 +86,19 @@ ui <- fluidPage(
           plotOutput("playlistsPlot")
         )
       )
+    ),
+    tabPanel("Release date vs parameters", fluid = TRUE,
+       sidebarLayout(
+         sidebarPanel(
+           h3("Release date vs parameters"),
+           helpText("Compare how release date affects songs' parameters"),
+           selectInput("medium", "Filter based on:", MEDIUM_OPTIONS),
+           selectInput("top_x", "Select:", TOP_X_OPTIONS),
+           selectInput("attr", "Parameter:", ATTR_OPTIONS),
+           selectInput("time_option", "Group by:", TIME_OPTIONS),
+         ),
+         mainPanel(plotOutput("releaseDatePlot"))
+       )
     )
   )
 )
@@ -270,6 +291,24 @@ server <- function(input, output, session) {
     } else {
       plot
     }
+  })
+  
+  data_release_date <- read.csv("data/spotify-2023.csv")
+  data_release_date$season <- apply(data_release_date, 1, date_to_season_row)
+  
+  release_date_reactive_data = reactive({
+    data <- head(data_release_date[order(data_release_date[,input$medium], decreasing= if (input$medium == "streams") F else T),], n = as.numeric(input$top_x))
+    return(data)
+  })
+  
+  output$releaseDatePlot <- renderPlot({
+    data_parsed <- release_date_reactive_data()
+    boxplot(data_parsed[[input$attr]]~data_parsed[[input$time_option]],
+            data=data_parsed,
+            xlab=if (input$time_option == "released_month") "Month Number" else if (input$time_option == "released_year") "year" else "season",
+            ylab="%",
+            col="orange",
+            border="brown")
   })
 }
 
