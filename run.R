@@ -5,4 +5,4 @@ install.packages("shiny")
 library(shiny)
 
 # Running my own app
-runApp("streamsVis")
+runApp("spotifyVis")
