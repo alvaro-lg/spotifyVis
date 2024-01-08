@@ -50,7 +50,8 @@ ui <- fluidPage(
     tabPanel("Outlier Exploration", fluid = TRUE,
       sidebarLayout(
         sidebarPanel(
-          h3("Explore Outliers by Comparing Parameters"),
+          h3("Explore Outliers."),
+          helpText("Filter the dataset, pick a song and compare its characteristics to the rest of them."),
           sliderInput("num_artists", "Maximum number of artists", min = 1, 
                       max = 8, value = 8),
           sliderInput("release_year", "Year of release", min = 1930, max = 2023, 
@@ -163,7 +164,6 @@ server <- function(input, output, session) {
     
     # optional: change searched song dot visuals
     if (!is.null(looked_song) && looked_song != "" && nrow(songs_filter)) {
-      print(looked_song)
       songs_filter <- songs_filter %>%
         mutate(
           fill = ifelse(str_detect(str_to_lower(track_name), str_to_lower(looked_song)), "red", "black"),
@@ -210,14 +210,8 @@ server <- function(input, output, session) {
       add_axis("x", title = xvar_name) %>%
       add_axis("y", title = yvar_name)
     
-    # Disable or enable the checkbox based on xvar and yvar values
-    if (input$xvar %in% c("in_spotify_playlists", "in_apple_playlists") && input$yvar %in% c("streams")) {
-      shinyjs::enable("add_regression")
-    } else {
-      shinyjs::disable("add_regression")
-    }
     # Conditionally add the regression line based on the checkbox value
-    if (input$add_regression && (input$xvar %in% c("in_spotify_playlists", "in_apple_playlists") && input$yvar %in% c("streams"))) {
+    if (input$add_regression && input$xvar != input$yvar) {
       plot <- plot %>% layer_smooths()
     }
     
